@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جستجوی آگهی‌ها - دیوار</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jalaali-js@1.1.0/dist/jalaali.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .card-hover { transition: all 0.2s ease; }
+        ::-webkit-scrollbar { width: 8px; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="propertySearch()" x-init="init()">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <h1 class="text-xl font-bold">جستجوی آگهی‌ها</h1>
+                </div>
+                <div class="flex items-center gap-4 text-sm">
+                    <button @click="openAddPersonalModal()"
+                            class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-full transition flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        افزودن فایل شخصی
+                    </button>
+                    <a href="/admin.html" class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        مدیریت
+                    </a>
+                    <span class="bg-blue-500/50 px-3 py-1 rounded-full">کل: <span x-text="stats.total || 0"></span></span>
+                    <span class="bg-green-500/50 px-3 py-1 rounded-full">فروش: <span x-text="stats.forSale || 0"></span></span>
+                    <span class="bg-amber-500/50 px-3 py-1 rounded-full">اجاره: <span x-text="stats.forRent || 0"></span></span>
+                    <span class="bg-purple-500/50 px-3 py-1 rounded-full">شخصی: <span x-text="stats.personal || 0"></span></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-6">
+
+        <!-- Filters Section -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-gray-800">فیلترها</h2>
+                <button @click="resetFilters()" class="text-sm text-red-500 hover:text-red-700 flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    پاک کردن
+                </button>
+            </div>
+
+            <!-- Search & Main Filters -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <!-- Description Search -->
+                <div class="lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">جستجو در توضیحات</label>
+                    <div class="relative">
+                        <input type="text" x-model="filters.description" @keyup.enter="search()"
+                               class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="کلمه کلیدی...">
+                        <svg class="absolute right-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- City -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">شهر</label>
+                    <select x-model="filters.city"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">همه شهرها</option>
+                        <template x-for="city in filterOptions.cities" :key="city">
+                            <option :value="city" x-text="city"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <!-- District -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">منطقه</label>
+                    <div class="relative">
+                        <button @click="districtDropdownOpen = !districtDropdownOpen"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-right flex items-center justify-between">
+                            <span x-text="filters.districts.length === 0 ? 'همه مناطق' : filters.districts.length + ' منطقه انتخاب شده'"></span>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div x-show="districtDropdownOpen" @click.away="districtDropdownOpen = false"
+                             class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <div class="p-2 border-b border-gray-100">
+                                <input type="text" x-model="districtSearch"
+                                       class="w-full px-2 py-1 text-sm border border-gray-200 rounded"
+                                       placeholder="جستجو...">
+                            </div>
+                            <div class="p-1">
+                                <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 cursor-pointer rounded">
+                                    <input type="checkbox" @change="toggleAllDistricts($event)"
+                                           :checked="filters.districts.length === filteredDistricts.length && filteredDistricts.length > 0"
+                                           class="w-4 h-4 text-blue-600 rounded">
+                                    <span class="text-sm">انتخاب همه</span>
+                                </label>
+                                <template x-for="district in filteredDistricts" :key="district">
+                                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 cursor-pointer rounded">
+                                        <input type="checkbox" :value="district"
+                                               :checked="filters.districts.includes(district)"
+                                               @change="toggleDistrict(district)"
+                                               class="w-4 h-4 text-blue-600 rounded">
+                                        <span class="text-sm" x-text="district"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Listing Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">نوع آگهی</label>
+                    <div class="flex items-center gap-4 mt-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" value="" x-model="filters.listingType"
+                                   class="w-4 h-4 text-blue-600">
+                            <span class="text-sm text-gray-700">همه</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" value="فروش" x-model="filters.listingType"
+                                   class="w-4 h-4 text-blue-600">
+                            <span class="text-sm text-gray-700">فروش</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" value="اجاره" x-model="filters.listingType"
+                                   class="w-4 h-4 text-blue-600">
+                            <span class="text-sm text-gray-700">اجاره</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" value="شخصی" x-model="filters.listingType"
+                                   class="w-4 h-4 text-blue-600">
+                            <span class="text-sm text-gray-700">شخصی</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Price & Area Range -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">قیمت از (تومان)</label>
+                    <input type="text" x-model="filters.minPriceDisplay" @input="formatPriceInput('minPrice')" @keyup.enter="search()"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="0" inputmode="numeric">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">قیمت تا (تومان)</label>
+                    <input type="text" x-model="filters.maxPriceDisplay" @input="formatPriceInput('maxPrice')" @keyup.enter="search()"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="1,000,000,000" inputmode="numeric">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">متراژ از (متر)</label>
+                    <input type="text" x-model="filters.minAreaDisplay" @input="formatAreaInput('minArea')" @keyup.enter="search()"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="0" inputmode="numeric">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">متراژ تا (متر)</label>
+                    <input type="text" x-model="filters.maxAreaDisplay" @input="formatAreaInput('maxArea')" @keyup.enter="search()"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="500" inputmode="numeric">
+                </div>
+            </div>
+
+            <!-- Features & Sort -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">تعداد اتاق</label>
+                    <select x-model="filters.rooms"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">همه</option>
+                        <option value="1">۱ اتاق</option>
+                        <option value="2">۲ اتاق</option>
+                        <option value="3">۳ اتاق</option>
+                        <option value="4">۴ اتاق</option>
+                        <option value="5">۵+ اتاق</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">مرتب‌سازی</label>
+                    <select x-model="sortBy"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="scrapedAt">جدیدترین</option>
+                        <option value="title">عنوان</option>
+                    </select>
+                </div>
+                <div class="flex items-end gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" x-model="filters.elevator" checked class="w-4 h-4 text-blue-600 rounded">
+                        <span class="text-sm text-gray-700">آسانسور</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" x-model="filters.parking" checked class="w-4 h-4 text-blue-600 rounded">
+                        <span class="text-sm text-gray-700">پارکینگ</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" x-model="filters.storage" checked class="w-4 h-4 text-blue-600 rounded">
+                        <span class="text-sm text-gray-700">انباری</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-3">
+                <button @click="search()" :disabled="loading"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                    <svg x-show="loading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span x-text="loading ? 'در حال جستجو...' : 'جستجو'"></span>
+                </button>
+                <button @click="resetFilters()"
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition">
+                    پاک کردن فیلترها
+                </button>
+                <div class="mr-auto text-sm text-gray-500">
+                    <span x-text="totalElements"></span> نتیجه
+                </div>
+            </div>
+        </div>
+
+        <!-- Selected Items Actions -->
+        <div x-show="selectedIds.length > 0" x-transition
+             class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="text-blue-700 font-medium" x-text="selectedIds.length + ' آگهی انتخاب شده'"></span>
+                <button @click="deleteSelected()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-lg text-sm">
+                    حذف انتخاب شده
+                </button>
+                <button @click="selectedIds = []" class="text-gray-500 hover:text-gray-700 text-sm">
+                    لغو انتخاب
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading && listings.length === 0" class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-r-transparent"></div>
+            <p class="mt-4 text-gray-600">در حال بارگذاری...</p>
+        </div>
+
+        <!-- No Results -->
+        <div x-show="!loading && listings.length === 0" class="text-center py-12 bg-white rounded-xl shadow-md">
+            <svg class="mx-auto w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p class="mt-4 text-gray-600 text-lg">آگهی‌ای یافت نشد</p>
+            <p class="mt-2 text-gray-400">فیلترها را تغییر دهید</p>
+        </div>
+
+        <!-- Results Grid -->
+        <div x-show="listings.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <template x-for="listing in listings" :key="listing.id">
+                <div class="bg-white rounded-xl shadow-md overflow-hidden card-hover fade-in"
+                     :class="{
+                        'ring-2 ring-blue-500': selectedIds.includes(listing.id),
+                        'bg-blue-50/40': listing.listingType === 'فروش' && !selectedIds.includes(listing.id),
+                        'bg-amber-50/40': listing.listingType === 'اجاره' && !selectedIds.includes(listing.id),
+                        'bg-green-50/40': listing.listingType === 'شخصی' && !selectedIds.includes(listing.id)
+                     }">
+
+                    <!-- Image -->
+                    <div class="relative h-48 bg-gray-200">
+                        <template x-if="listing.imageUrls && listing.imageUrls.length > 0">
+                            <img :src="listing.imageUrls[0]" :alt="listing.title"
+                                 class="w-full h-full object-cover"
+                                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22%3E%3Crect fill=%22%23e5e7eb%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%239ca3af%22 font-size=%2220%22%3Eبدون تصویر%3C/text%3E%3C/svg%3E'">
+                        </template>
+                        <template x-if="!listing.imageUrls || listing.imageUrls.length === 0">
+                            <div class="w-full h-full flex items-center justify-center text-gray-400">
+                                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                        </template>
+
+                        <!-- Listing Type Badge -->
+                        <div class="absolute top-3 right-3">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold"
+                                  :class="{
+                                    'bg-blue-600 text-white': listing.listingType === 'فروش',
+                                    'bg-amber-500 text-white': listing.listingType === 'اجاره',
+                                    'bg-purple-600 text-white': listing.listingType === 'شخصی',
+                                    'bg-gray-500 text-white': !listing.listingType
+                                  }"
+                                  x-text="listing.listingType || 'نامشخص'"></span>
+                        </div>
+
+                        <!-- Selection Checkbox -->
+                        <div class="absolute top-3 left-3">
+                            <input type="checkbox" :value="listing.id"
+                                   :checked="selectedIds.includes(listing.id)"
+                                   @change="toggleSelect(listing.id)"
+                                   class="w-5 h-5 text-blue-600 rounded cursor-pointer">
+                        </div>
+
+                        <!-- Image Count -->
+                        <div x-show="listing.imageUrls && listing.imageUrls.length > 1"
+                             class="absolute bottom-3 left-3 bg-black/60 text-white px-2 py-1 rounded text-xs">
+                            <span x-text="listing.imageUrls.length"></span> تصویر
+                        </div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="p-4">
+                        <!-- Title -->
+                        <h3 class="font-bold text-gray-800 mb-2 line-clamp-1" x-text="listing.title"></h3>
+
+                        <!-- Location -->
+                        <div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            <span x-text="listing.city + (listing.district ? '، ' + listing.district : '')"></span>
+                        </div>
+
+                        <!-- Date -->
+                        <div class="flex items-center gap-2 text-xs text-gray-400 mb-3">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <span x-text="listing.scrapedAtJalali || toJalali(listing.scrapedAt)"></span>
+                        </div>
+
+                        <!-- Key Attributes -->
+                        <div class="space-y-1.5 mb-4">
+                            <template x-if="listing.keyAttributes">
+                                <template x-for="(value, key) in listing.keyAttributes" :key="key">
+                                    <div class="flex items-center justify-between text-sm" x-show="key !== 'city' && key !== 'district'">
+                                        <span class="text-gray-500" x-text="getAttributeTitle(key)"></span>
+                                        <span class="font-medium text-gray-800" x-text="formatValue(key, value)"></span>
+                                    </div>
+                                </template>
+                            </template>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                            <a x-show="listing.url && listing.url !== '#'" :href="listing.url" target="_blank"
+                               class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-lg text-sm transition">
+                                مشاهده در دیوار
+                            </a>
+                            <button @click="openEditModal(listing)"
+                                    class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                    title="ویرایش">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                            </button>
+                            <button @click="confirmDelete(listing)"
+                                    class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                                    title="حذف">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Pagination -->
+        <div x-show="totalPages > 1" class="mt-8 flex items-center justify-center gap-2">
+            <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 0"
+                    class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                قبلی
+            </button>
+            <template x-for="p in visiblePages" :key="p">
+                <button @click="goToPage(p)"
+                        class="w-10 h-10 rounded-lg transition"
+                        :class="{
+                            'bg-blue-600 text-white': p === currentPage,
+                            'border border-gray-300 hover:bg-gray-100': p !== currentPage
+                        }"
+                        x-text="p + 1"></button>
+            </template>
+            <button @click="goToPage(currentPage + 1)" :disabled="currentPage >= totalPages - 1"
+                    class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                بعدی
+            </button>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div x-show="editModal.open" x-transition.opacity class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" x-cloak>
+        <div @click.away="editModal.open = false" x-transition
+             class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-gray-800">ویرایش آگهی</h3>
+                    <button @click="editModal.open = false" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">عنوان</label>
+                        <input type="text" x-model="editModal.data.title"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">شهر</label>
+                            <input type="text" x-model="editModal.data.city"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">منطقه</label>
+                            <input type="text" x-model="editModal.data.district"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">نوع آگهی</label>
+                        <select x-model="editModal.data.listingType"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="فروش">فروش</option>
+                            <option value="اجاره">اجاره</option>
+                            <option value="شخصی">شخصی</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">توضیحات</label>
+                        <textarea x-model="editModal.data.description" rows="4"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 mt-6 pt-4 border-t">
+                    <button @click="saveEdit()"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
+                        ذخیره
+                    </button>
+                    <button @click="editModal.open = false"
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition">
+                        انصراف
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div x-show="deleteModal.open" x-transition.opacity class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" x-cloak>
+        <div @click.away="deleteModal.open = false" x-transition
+             class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div class="text-center">
+                <div class="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 mb-2">حذف آگهی</h3>
+                <p class="text-gray-600 mb-6">آیا مطمئن هستید؟ این عمل قابل بازگشت نیست.</p>
+                <div class="flex items-center gap-3 justify-center">
+                    <button @click="deleteListing()"
+                            class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition">
+                        حذف
+                    </button>
+                    <button @click="deleteModal.open = false"
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition">
+                        انصراف
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Personal Listing Modal -->
+    <div x-show="addPersonalModal.open" x-transition.opacity class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" x-cloak>
+        <div @click.away="addPersonalModal.open = false" x-transition
+             class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-gray-800">افزودن فایل شخصی</h3>
+                    <button @click="addPersonalModal.open = false" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Title -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">عنوان <span class="text-red-500">*</span></label>
+                        <input type="text" x-model="addPersonalModal.data.title"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                               placeholder="مثال: آپارتمان ۸۰ متری">
+                    </div>
+
+                    <!-- City & District -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">شهر <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="addPersonalModal.data.city"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                   placeholder="تهران">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">منطقه <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="addPersonalModal.data.district"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                   placeholder="مثلاً: تجریش">
+                        </div>
+                    </div>
+
+                    <!-- Listing Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">نوع آگهی</label>
+                        <select x-model="addPersonalModal.data.listingType"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="شخصی">شخصی</option>
+                            <option value="فروش">فروش</option>
+                            <option value="اجاره">اجاره</option>
+                        </select>
+                    </div>
+
+                    <!-- Price & Area -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">قیمت کل (تومان)</label>
+                            <input type="text" x-model="addPersonalModal.data.price"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                   placeholder="مثال: ۵,۰۰۰,۰۰۰,۰۰۰" inputmode="numeric">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">متراژ (متر)</label>
+                            <input type="text" x-model="addPersonalModal.data.area"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                   placeholder="80" inputmode="numeric">
+                        </div>
+                    </div>
+
+                    <!-- Deposit & Rent -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ودیعه (تومان)</label>
+                            <input type="text" x-model="addPersonalModal.data.deposit"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                   placeholder="مثال: ۲۰۰,۰۰۰,۰۰۰" inputmode="numeric">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">اجاره ماهانه (تومان)</label>
+                            <input type="text" x-model="addPersonalModal.data.monthlyRent"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                   placeholder="مثال: ۵,۰۰۰,۰۰۰" inputmode="numeric">
+                        </div>
+                    </div>
+
+                    <!-- Rooms & Floor -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">تعداد اتاق</label>
+                            <input type="text" x-model="addPersonalModal.data.rooms"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                   placeholder="3" inputmode="numeric">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">طبقه</label>
+                            <input type="text" x-model="addPersonalModal.data.floor"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                   placeholder="3">
+                        </div>
+                    </div>
+
+                    <!-- URL -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">لینک (اختیاری)</label>
+                        <input type="url" x-model="addPersonalModal.data.url"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                               placeholder="https://...">
+                    </div>
+
+                    <!-- Image URLs -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">لینک تصاویر (هر کدام در یک خط)</label>
+                        <textarea x-model="addPersonalModal.data.imageUrlsText" rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                  placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"></textarea>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">توضیحات</label>
+                        <textarea x-model="addPersonalModal.data.description" rows="4"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                  placeholder="توضیحات تکمیلی..."></textarea>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 mt-6 pt-4 border-t">
+                    <button @click="savePersonalListing()"
+                            :disabled="addPersonalModal.saving"
+                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition disabled:opacity-50 flex items-center gap-2">
+                        <svg x-show="addPersonalModal.saving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span x-text="addPersonalModal.saving ? 'در حال ذخیره...' : 'ذخیره فایل'"></span>
+                    </button>
+                    <button @click="addPersonalModal.open = false"
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition">
+                        انصراف
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div x-show="toast.show" x-transition
+         class="fixed bottom-4 left-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white"
+         :class="{
+            'bg-green-600': toast.type === 'success',
+            'bg-red-600': toast.type === 'error',
+            'bg-blue-600': toast.type === 'info'
+         }">
+        <span x-text="toast.message"></span>
+    </div>
+
+    <script>
+        function propertySearch() {
+            return {
+                listings: [],
+                filterOptions: { cities: [], districts: [], listingTypes: [], propertyTypes: [] },
+                filters: {
+                    city: '',
+                    districts: [],
+                    listingType: '',
+                    description: '',
+                    minPrice: null,
+                    maxPrice: null,
+                    minPriceDisplay: '',
+                    maxPriceDisplay: '',
+                    minArea: null,
+                    maxArea: null,
+                    minAreaDisplay: '',
+                    maxAreaDisplay: '',
+                    rooms: null,
+                    elevator: true,
+                    parking: true,
+                    storage: true
+                },
+                sortBy: 'scrapedAt',
+                sortDir: 'DESC',
+                currentPage: 0,
+                totalPages: 0,
+                totalElements: 0,
+                pageSize: 20,
+                loading: false,
+                selectedIds: [],
+                stats: { total: 0, forSale: 0, forRent: 0 },
+                districtDropdownOpen: false,
+                districtSearch: '',
+
+                editModal: { open: false, data: {}, id: null },
+                deleteModal: { open: false, id: null },
+                addPersonalModal: {
+                    open: false,
+                    saving: false,
+                    data: {
+                        title: '', city: '', district: '', listingType: 'شخصی',
+                        price: '', deposit: '', monthlyRent: '', area: '', rooms: '', floor: '',
+                        url: '', imageUrlsText: '', description: ''
+                    }
+                },
+                toast: { show: false, message: '', type: 'success' },
+
+                get filteredDistricts() {
+                    let districts = this.filterOptions.districts;
+                    if (this.districtSearch) {
+                        districts = districts.filter(d => d.includes(this.districtSearch));
+                    }
+                    return districts;
+                },
+
+                get visiblePages() {
+                    const pages = [];
+                    const start = Math.max(0, this.currentPage - 2);
+                    const end = Math.min(this.totalPages - 1, this.currentPage + 2);
+                    for (let i = start; i <= end; i++) pages.push(i);
+                    return pages;
+                },
+
+                async init() {
+                    await this.loadFilters();
+                    await this.loadStats();
+                    await this.search();
+                },
+
+                async loadFilters() {
+                    try {
+                        const res = await fetch('/api/search/filters');
+                        this.filterOptions = await res.json();
+                    } catch (e) {
+                        console.error('Failed to load filters:', e);
+                    }
+                },
+
+                async loadStats() {
+                    try {
+                        const res = await fetch('/api/search/stats');
+                        this.stats = await res.json();
+                    } catch (e) {
+                        console.error('Failed to load stats:', e);
+                    }
+                },
+
+                async search() {
+                    this.loading = true;
+                    try {
+                        const params = new URLSearchParams();
+                        params.set('page', this.currentPage);
+                        params.set('size', this.pageSize);
+                        params.set('sortBy', this.sortBy);
+                        params.set('sortDir', this.sortDir);
+
+                        if (this.filters.city) params.set('city', this.filters.city);
+                        if (this.filters.districts.length > 0) {
+                            this.filters.districts.forEach(d => params.append('districts', d));
+                        }
+                        if (this.filters.listingType) params.set('listingType', this.filters.listingType);
+                        if (this.filters.description) params.set('description', this.filters.description);
+                        if (this.filters.minPrice != null) params.set('minPrice', this.filters.minPrice);
+                        if (this.filters.maxPrice != null) params.set('maxPrice', this.filters.maxPrice);
+                        if (this.filters.minArea != null) params.set('minArea', this.filters.minArea);
+                        if (this.filters.maxArea != null) params.set('maxArea', this.filters.maxArea);
+                        if (this.filters.rooms != null && this.filters.rooms !== '') params.set('rooms', this.filters.rooms);
+                        if (this.filters.elevator) params.set('hasElevator', 'true');
+                        if (this.filters.parking) params.set('hasParking', 'true');
+                        if (this.filters.storage) params.set('hasStorage', 'true');
+
+                        const res = await fetch('/api/search/listings?' + params.toString());
+                        const data = await res.json();
+
+                        this.listings = data.content.map(listing => ({
+                            ...listing,
+                            keyAttributes: listing.keyAttributes || {}
+                        }));
+                        this.totalPages = data.totalPages;
+                        this.totalElements = data.totalElements;
+                        this.currentPage = data.currentPage;
+                    } catch (e) {
+                        console.error('Search failed:', e);
+                        this.showToast('خطا در جستجو', 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                goToPage(page) {
+                    if (page < 0 || page >= this.totalPages) return;
+                    this.currentPage = page;
+                    this.search();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                },
+
+                resetFilters() {
+                    this.filters = {
+                        city: '', districts: [], listingType: '', description: '',
+                        minPrice: null, maxPrice: null, minPriceDisplay: '', maxPriceDisplay: '',
+                        minArea: null, maxArea: null, minAreaDisplay: '', maxAreaDisplay: '',
+                        rooms: null, elevator: true, parking: true, storage: true
+                    };
+                    this.currentPage = 0;
+                    this.search();
+                },
+
+                toggleSelect(id) {
+                    const idx = this.selectedIds.indexOf(id);
+                    if (idx === -1) this.selectedIds.push(id);
+                    else this.selectedIds.splice(idx, 1);
+                },
+
+                toggleDistrict(district) {
+                    const idx = this.filters.districts.indexOf(district);
+                    if (idx === -1) this.filters.districts.push(district);
+                    else this.filters.districts.splice(idx, 1);
+                },
+
+                toggleAllDistricts(event) {
+                    if (event.target.checked) {
+                        this.filters.districts = [...this.filteredDistricts];
+                    } else {
+                        this.filters.districts = [];
+                    }
+                },
+
+                openEditModal(listing) {
+                    this.editModal.id = listing.id;
+                    this.editModal.data = {
+                        title: listing.title,
+                        city: listing.city,
+                        district: listing.district,
+                        listingType: listing.listingType,
+                        description: listing.description || ''
+                    };
+                    this.editModal.open = true;
+                },
+
+                async saveEdit() {
+                    try {
+                        const res = await fetch(`/api/search/listings/${this.editModal.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.editModal.data)
+                        });
+                        if (res.ok) {
+                            this.editModal.open = false;
+                            this.showToast('آگهی با موفقیت ویرایش شد', 'success');
+                            await this.search();
+                        }
+                    } catch (e) {
+                        this.showToast('خطا در ویرایش', 'error');
+                    }
+                },
+
+                confirmDelete(listing) {
+                    this.deleteModal.id = listing.id;
+                    this.deleteModal.open = true;
+                },
+
+                async deleteListing() {
+                    try {
+                        const res = await fetch(`/api/search/listings/${this.deleteModal.id}`, {
+                            method: 'DELETE'
+                        });
+                        if (res.ok) {
+                            this.deleteModal.open = false;
+                            this.showToast('آگهی حذف شد', 'success');
+                            await this.search();
+                            await this.loadStats();
+                        }
+                    } catch (e) {
+                        this.showToast('خطا در حذف', 'error');
+                    }
+                },
+
+                async deleteSelected() {
+                    if (!confirm(`آیا از حذف ${this.selectedIds.length} آگهی مطمئن هستید؟`)) return;
+                    try {
+                        const res = await fetch('/api/search/listings', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ids: this.selectedIds })
+                        });
+                        if (res.ok) {
+                            this.selectedIds = [];
+                            this.showToast('آگهی‌ها حذف شدند', 'success');
+                            await this.search();
+                            await this.loadStats();
+                        }
+                    } catch (e) {
+                        this.showToast('خطا در حذف', 'error');
+                    }
+                },
+
+                openAddPersonalModal() {
+                    this.addPersonalModal.data = {
+                        title: '', city: '', district: '', listingType: 'شخصی',
+                        price: '', deposit: '', monthlyRent: '', area: '', rooms: '', floor: '',
+                        url: '', imageUrlsText: '', description: ''
+                    };
+                    this.addPersonalModal.saving = false;
+                    this.addPersonalModal.open = true;
+                },
+
+                async savePersonalListing() {
+                    const d = this.addPersonalModal.data;
+                    if (!d.title.trim() || !d.city.trim() || !d.district.trim()) {
+                        this.showToast('عنوان، شهر و منطقه الزامی هستند', 'error');
+                        return;
+                    }
+
+                    this.addPersonalModal.saving = true;
+
+                    const attributes = [];
+                    if (d.price) attributes.push({ key: 'price', value: d.price });
+                    if (d.deposit) attributes.push({ key: 'deposit', value: d.deposit });
+                    if (d.monthlyRent) attributes.push({ key: 'monthlyRent', value: d.monthlyRent });
+                    if (d.area) attributes.push({ key: 'area', value: d.area });
+                    if (d.rooms) attributes.push({ key: 'rooms', value: d.rooms });
+                    if (d.floor) attributes.push({ key: 'floor', value: d.floor });
+
+                    const imageUrls = d.imageUrlsText
+                        .split('\n')
+                        .map(u => u.trim())
+                        .filter(u => u.length > 0);
+
+                    try {
+                        const res = await fetch('/api/search/listings', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                title: d.title.trim(),
+                                city: d.city.trim(),
+                                district: d.district.trim(),
+                                listingType: d.listingType,
+                                description: d.description.trim(),
+                                url: d.url.trim(),
+                                attributes: attributes,
+                                imageUrls: imageUrls
+                            })
+                        });
+                        if (res.ok) {
+                            this.addPersonalModal.open = false;
+                            this.showToast('فایل شخصی با موفقیت ایجاد شد', 'success');
+                            await this.search();
+                            await this.loadStats();
+                        } else {
+                            const err = await res.json();
+                            this.showToast(err.error || 'خطا در ایجاد فایل', 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('خطا در ایجاد فایل', 'error');
+                    } finally {
+                        this.addPersonalModal.saving = false;
+                    }
+                },
+
+                formatPriceInput(field) {
+                    let displayField = field + 'Display';
+                    let val = this.filters[displayField].replace(/[^0-9]/g, '');
+                    if (val) {
+                        this.filters[field] = parseInt(val);
+                        this.filters[displayField] = parseInt(val).toLocaleString('en');
+                    } else {
+                        this.filters[field] = null;
+                        this.filters[displayField] = '';
+                    }
+                },
+
+                formatAreaInput(field) {
+                    let displayField = field + 'Display';
+                    let val = this.filters[displayField].replace(/[^0-9]/g, '');
+                    if (val) {
+                        this.filters[field] = parseInt(val);
+                        this.filters[displayField] = parseInt(val).toLocaleString('en');
+                    } else {
+                        this.filters[field] = null;
+                        this.filters[displayField] = '';
+                    }
+                },
+
+                toJalali(dateStr) {
+                    if (!dateStr) return '';
+                    try {
+                        let d;
+                        if (Array.isArray(dateStr)) {
+                            d = new Date(dateStr[0], dateStr[1] - 1, dateStr[2], dateStr[3] || 0, dateStr[4] || 0, dateStr[5] || 0);
+                        } else if (typeof dateStr === 'string') {
+                            d = new Date(dateStr);
+                            if (isNaN(d.getTime())) {
+                                const parts = dateStr.split(/[-T:.]/);
+                                d = new Date(parts[0], parts[1] - 1, parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0);
+                            }
+                        } else {
+                            return '';
+                        }
+                        if (isNaN(d.getTime())) return dateStr;
+                        const j = jalaali.toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
+                        const months = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+                        return j.jd + ' ' + months[j.jm - 1] + ' ' + j.jy;
+                    } catch (e) {
+                        return dateStr;
+                    }
+                },
+
+                getAttributeTitle(key) {
+                    const titles = {
+                        'price': 'قیمت', 'pricePerMeter': 'قیمت هر متر', 'area': 'متراژ',
+                        'rooms': 'اتاق', 'floor': 'طبقه', 'yearBuilt': 'سال ساخت',
+                        'totalFloors': 'کل طبقات', 'elevator': 'آسانسور', 'parking': 'پارکینگ',
+                        'storage': 'انباری', 'deposit': 'ودیعه', 'monthlyRent': 'اجاره',
+                        'buildingDirection': 'جهت', 'deedType': 'سند', 'kitchenType': 'آشپزخانه',
+                        'buildingFacade': 'نمای ساختمان', 'address': 'آدرس', 'balcony': 'بالکن'
+                    };
+                    return titles[key] || key;
+                },
+
+                formatValue(key, value) {
+                    if (key === 'price' || key === 'deposit' || key === 'monthlyRent' || key === 'pricePerMeter') {
+                        try {
+                            const num = parseInt(value.replace(/[^0-9]/g, ''));
+                            if (!isNaN(num)) return num.toLocaleString('fa-IR') + ' تومان';
+                        } catch (e) {}
+                    }
+                    if (key === 'area') return value + ' متر';
+                    return value;
+                },
+
+                showToast(message, type = 'success') {
+                    this.toast = { show: true, message, type };
+                    setTimeout(() => { this.toast.show = false; }, 3000);
+                }
+            };
+        }
+    </script>
+</body>
+</html>

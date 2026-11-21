@@ -1,0 +1,35 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: NewDivarExtraction
+  datasource:
+    url: jdbc:mysql://localhost:3306/divar_extraction?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8&useUnicode=true&characterSetResults=UTF-8
+    username: root
+    password:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+app:
+  divar:
+    scroll-wait-seconds: 3
+    request-delay-seconds: 5
+    max-scroll-attempts: 10
+
+  telegram:
+    bot-token: "8849614428:AAH0HRMdjOipAvEJBXI5np-NE16pzNRD69k"
+    channel-id: "-1003942397410"
+
+  scheduler:
+    cron: "0 0 */5 * * ?"
+
+filter:
+  keywords-file: classpath:filter-keywords.json
